@@ -1,25 +1,40 @@
-
 from rest_framework import viewsets
-from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
 from .models import Listing, Booking
 from .serializers import ListingSerializer, BookingSerializer
 
-# Create your views here.
 class ListingView(viewsets.ModelViewSet):
     """
-    A viewset for viewing and editing listing instances.
+    A viewset for viewing and editing Listing instances.
     """
     queryset = Listing.objects.all()
     serializer_class = ListingSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return self.queryset
+        """
+        Optionally restricts the returned listings to those created by the authenticated user.
+        """
+        user = self.request.user
+        if user.is_authenticated:
+            return Listing.objects.filter(host=user).order_by('-created_at')
+        return Listing.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
 class BookingView(viewsets.ModelViewSet):
     """
-    A viewset for viewing and editing booking instances.
+    A viewset for viewing and editing Booking instances.
+    Only returns bookings made by the currently authenticated user.
     """
-    queryset = Booking.objects.all()
     serializer_class = BookingSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return self.queryset
+        return Booking.objects.filter(user=self.request.user).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
